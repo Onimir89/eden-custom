@@ -15,6 +15,7 @@ This contains documentation created by developers, build instructions, guideline
   - **[RenderDoc](./Debug.md#renderdoc)**
 - **[CPM - CMake Package Manager](./CPMUtil.md)**
 - **[Platform-Specific Caveats](./Caveats.md)**
+- **[Mali-G720 VRAM Optimization & OOM Fix](./mali_g720_vram_optimization.md)**
 - **[The NVIDIA SM86 (Maxwell) GPU](./NvidiaGpu.md)**
 - **[Driver Bugs](./DriverBugs.md)**
 - **[Building Older Commits](./build/OlderCommits.md)**
