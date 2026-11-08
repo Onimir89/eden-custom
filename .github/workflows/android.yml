@@ -1,0 +1,54 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & CMake
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "ndk;28.2.13676358" "cmake;3.31.5" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build Android APK
+        run: |
+          chmod +x .ci/android/build.sh
+          chmod +x src/android/gradlew
+          ./.ci/android/build.sh -t standard -b Release
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-android-mali-fix-apk
+          path: |
+            artifacts/*.apk
+            src/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

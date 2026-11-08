@@ -506,6 +506,9 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
                                  properties.subgroup_size_control.maxSubgroupSize > GuestWarpSize;
 
     is_integrated = properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+#ifdef __ANDROID__
+    is_integrated = true;
+#endif
     is_virtual = properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
     is_non_gpu = properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_OTHER ||
                  properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
@@ -748,6 +751,12 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
     if (extensions.buffer_device_address) {
         flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     }
+    VkDeviceSize heap_limits[VK_MAX_MEMORY_HEAPS] = {};
+#ifdef __ANDROID__
+    for (size_t i = 0; i < VK_MAX_MEMORY_HEAPS; ++i) {
+        heap_limits[i] = 3072_MiB;
+    }
+#endif
     const VmaAllocatorCreateInfo allocator_info{
             .flags = flags,
             .physicalDevice = physical,
@@ -757,7 +766,11 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
                                            : (256u * 1024u * 1024u),
             .pAllocationCallbacks = nullptr,
             .pDeviceMemoryCallbacks = nullptr,
+#ifdef __ANDROID__
+            .pHeapSizeLimit = heap_limits,
+#else
             .pHeapSizeLimit = nullptr,
+#endif
             .pVulkanFunctions = &functions,
             .instance = instance,
             .vulkanApiVersion = ApiVersion(),
@@ -1644,6 +1657,9 @@ void Device::CollectPhysicalMemoryInfo() {
         const s64 available_memory = static_cast<s64>(device_access_memory - device_initial_usage);
         const u64 memory_size = Settings::values.vram_usage_mode.GetValue() == Settings::VramUsageMode::Aggressive ? 6_GiB : 4_GiB;
         device_access_memory = static_cast<u64>(std::max<s64>(std::min<s64>(available_memory - 8_GiB, memory_size), std::min<s64>(local_memory, memory_size)));
+#ifdef __ANDROID__
+        device_access_memory = std::min<u64>(device_access_memory, 3072_MiB);
+#endif
     } else {
         const u64 reserve_memory = std::min<u64>(device_access_memory / 8, 1_GiB);
         device_access_memory -= reserve_memory;
@@ -1652,6 +1668,9 @@ void Device::CollectPhysicalMemoryInfo() {
             const size_t normal_memory = 6_GiB;
             const size_t scaler_memory = 1_GiB * Settings::values.resolution_info.ScaleUp(1);
             device_access_memory = std::min<u64>(device_access_memory, normal_memory + scaler_memory);
+#ifdef __ANDROID__
+    device_access_memory = std::min<u64>(device_access_memory, 3072_MiB);
+#endif
         }
     }
 }

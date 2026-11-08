@@ -36,7 +36,11 @@ constexpr VkDeviceSize MAX_ALIGNMENT = 256;
 #if defined(__FreeBSD__)
 constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 128_MiB;
 #else
+#if defined(__ANDROID__)
+constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 64_MiB;
+#else
 constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 256_MiB;
+#endif
 #endif
 
 size_t GetStreamBufferSize(const Device& device) {
