@@ -221,7 +221,14 @@ vk::Image MemoryAllocator::CreateImage(const VkImageCreateInfo &ci) const
     VkImage handle{};
     VmaAllocation allocation{};
     VmaAllocationInfo alloc_info{};
-    vk::Check(vmaCreateImage(allocator, &ci, &alloc_ci, &handle, &allocation, &alloc_info));
+    VkResult res = vmaCreateImage(allocator, &ci, &alloc_ci, &handle, &allocation, &alloc_info);
+    if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        // Past the budget: exceed it and let the garbage collector catch up
+        auto relaxed_ci = alloc_ci;
+        relaxed_ci.flags &= ~VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
+        res = vmaCreateImage(allocator, &ci, &relaxed_ci, &handle, &allocation, &alloc_info);
+    }
+    vk::Check(res);
 
     // Log GPU memory allocation for images
     if (GPU::Logging::IsActive() &&
@@ -258,7 +265,14 @@ vk::Buffer MemoryAllocator::CreateBuffer(const VkBufferCreateInfo &ci, MemoryUsa
     VmaAllocation allocation{};
     VkMemoryPropertyFlags property_flags{};
 
-    vk::Check(vmaCreateBuffer(allocator, &ci, &alloc_ci, &handle, &allocation, &alloc_info));
+    VkResult res = vmaCreateBuffer(allocator, &ci, &alloc_ci, &handle, &allocation, &alloc_info);
+    if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        // Past the budget: exceed it and let the garbage collector catch up
+        auto relaxed_ci = alloc_ci;
+        relaxed_ci.flags &= ~VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
+        res = vmaCreateBuffer(allocator, &ci, &relaxed_ci, &handle, &allocation, &alloc_info);
+    }
+    vk::Check(res);
     vmaGetAllocationMemoryProperties(allocator, allocation, &property_flags);
 
     // Log GPU memory allocation for buffers
@@ -314,8 +328,16 @@ vk::Buffer MemoryAllocator::CreateBuffer(const VkBufferCreateInfo &ci, MemoryUsa
     VmaAllocation allocation{};
     VkMemoryPropertyFlags property_flags{};
 
-    vk::Check(vmaCreateBufferWithAlignment(allocator, &ci, &alloc_ci, min_alignment, &handle,
-                                           &allocation, &alloc_info));
+    VkResult res = vmaCreateBufferWithAlignment(allocator, &ci, &alloc_ci, min_alignment, &handle,
+                                                &allocation, &alloc_info);
+    if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        // Past the budget: exceed it and let the garbage collector catch up
+        auto relaxed_ci = alloc_ci;
+        relaxed_ci.flags &= ~VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
+        res = vmaCreateBufferWithAlignment(allocator, &ci, &relaxed_ci, min_alignment, &handle,
+                                           &allocation, &alloc_info);
+    }
+    vk::Check(res);
     vmaGetAllocationMemoryProperties(allocator, allocation, &property_flags);
 
     u8 *data = reinterpret_cast<u8 *>(alloc_info.pMappedData);
