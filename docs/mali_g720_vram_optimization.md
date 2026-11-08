@@ -152,3 +152,48 @@ La correzione è compilata solo dalla CI. Va provata sul telefono.
 ### Chiavi su Android
 
 `title.keys` si installa dallo stesso pulsante di `prod.keys`: si sceglie il file e l'app lo copia con il suo nome nella cartella `keys`. Va installato dopo `prod.keys`, altrimenti il controllo finale segnala un errore di inizializzazione.
+
+Prima di concludere che le chiavi sono rifiutate, reinstallare l'APK da pulito: sul POCO X7 Pro il rifiuto al primo tentativo non si è ripetuto dopo la reinstallazione. La causa non è stata accertata.
+
+---
+
+## 6. Compilare e provare senza aspettare GitHub
+
+### Compilare in locale
+
+La CI impiega circa 22 minuti perché ricompila tutto a ogni push. Su una macchina propria la cartella di build resta, quindi dalla seconda volta si ricompilano solo i file cambiati.
+
+Servono JDK 17, l'Android SDK con i pacchetti elencati in `.github/workflows/android.yml` e `glslangValidator` nel `PATH`. Poi, dalla radice del repo:
+
+```bash
+JAVA_HOME=<jdk> ANDROID_HOME=<sdk> .ci/android/build.sh -t standard -b Release
+```
+
+L'APK finisce in `artifacts/`. Senza keystore è firmato con la chiave di debug del repo, la stessa della CI, quindi si installa sopra una build CI.
+
+### Leggere un crash dal telefono
+
+Con il debug USB attivo:
+
+```bash
+adb logcat -d -v threadtime > logcat.txt
+adb pull /storage/emulated/0/Android/data/dev.eden.eden_emulator/files/log/
+```
+
+- In `logcat.txt` cercare `Abort message`, `Fatal signal` e `lowmemorykiller: Kill`. Il primo indica un'eccezione o un abort dell'emulatore, l'ultimo un kill di Android.
+- `eden_log.txt` è l'ultimo avvio. Dopo un riavvio dell'app, il log del crash è `eden_log.txt.old.txt`.
+- Una build Release della CI non ha simboli nel backtrace. La libreria non ridotta di una build locale permette di risalire alle funzioni.
+
+### Strumenti di debug di Eden
+
+Eden scrive un registro GPU in `eden_gpu.log` e una cartella `gpu_crashes`, nella stessa cartella dei log. Si accende con queste impostazioni:
+
+- `gpu_log_level` (`Off`, `Errors`, `Standard`, `Verbose`, `All`);
+- `gpu_log_memory_tracking`, `gpu_log_vulkan_calls`, `gpu_log_driver_debug`;
+- `extended_logging` e `debug` del renderer.
+
+`use_debug_asserts` e `use_auto_stub` cambiano il comportamento dell'emulatore: tenerli spenti quando si prova un crash.
+
+### File da reinstallare
+
+La disinstallazione cancella `files/` dell'app: chiavi, `nand` (firmware e salvataggi) e configurazione. I giochi fuori da quella cartella restano. Prima di disinstallare, copiare `files/config` e `files/nand/user/save`.
